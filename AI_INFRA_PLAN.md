@@ -11,26 +11,14 @@ This document is the reading policy, not the workflow spec.
 - distributed inference
 - quantization and low-latency inference
 
-This is a soft reading preference, not a hard gate. If a paper has a genuinely novel idea or a paper-worthy direction, it can still enter full reading even when it is not primarily about acceleration.
-
-## Venue Bias
-
-Give extra weight to papers likely to land in:
-
-- OSDI
-- ASPLOS
-- SOSP
-- NSDI
-- EuroSys
-- ATC
-- MLSys
+This is a soft reading preference, not a hard gate.
+If a paper has a genuinely novel idea or a paper-worthy direction, it can still enter full reading even when it is not primarily about acceleration.
 
 ## Retrieval Rule
 
-- Fetch broad `cs.*` arXiv metadata first.
-- Do not hardcode infra-only filters at retrieval time.
+- Fetch only the approved `cs` categories at retrieval time and treat the allowlist as a hard fence.
+- Do not hardcode infra-only filters beyond the category hard fence.
 - Let Codex decide whether an algorithmic paper is infra-relevant, including cases like speculative decoding or other inference-speedup work.
-- Topic scope should stay broad enough to catch promising systems ideas outside pure acceleration.
 
 ## Triage Rule
 
@@ -41,7 +29,8 @@ Give extra weight to papers likely to land in:
 - Penalize vague framework papers, benchmark-only work, or pure algorithm papers with no deployment angle.
 - `skip` only when a paper is clearly off-scope, thin, or malformed.
 - If uncertain, default to `skim`.
-- The final daily digest should only surface papers that pass this scoring filter.
+- The final daily digest should be Chinese-first. Preserve English technical terms in English, especially `token`, `MoE`, `KV cache`, and `speculative decoding`.
+- Include score-4 and score-5 papers in the final digest.
 
 ## Summary Fields
 

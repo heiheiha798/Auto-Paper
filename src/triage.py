@@ -10,7 +10,7 @@ def score_triage(paper: ArxivPaper, extracted: ExtractedDocument, focus: dict) -
 
     relevance_score = _score_relevance(text, focus)
     infra_fit_score = _score_infra_fit(text)
-    venue_fit_score = _score_venue(paper, focus)
+    venue_fit_score = 0
     technical_substance_score = _score_technical_substance(text, extracted.text)
     evidence_quality_score = _score_evidence(text, extracted.text)
     overall_score = min(
@@ -100,9 +100,7 @@ def _score_infra_fit(text: str) -> int:
 
 
 def _score_venue(paper: ArxivPaper, focus: dict) -> int:
-    venue = (paper.venue_hint or "").upper()
-    venues = {v.upper() for v in focus.get("venue_hints", [])}
-    return SCORE_SCALE if venue in venues else 0
+    return 0
 
 
 def _score_technical_substance(text: str, raw_text: str) -> int:

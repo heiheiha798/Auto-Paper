@@ -44,7 +44,10 @@ def build_date_window_query(base_query: str, run_date: str, timezone_name: str, 
     end_local = datetime.combine(day + timedelta(days=1), datetime.min.time(), tz)
     start_utc = start_local.astimezone(timezone.utc)
     end_utc = end_local.astimezone(timezone.utc)
-    return f"({base_query}) AND submittedDate:[{start_utc:%Y%m%d%H%M} TO {end_utc:%Y%m%d%H%M}]"
+    base_query = base_query.strip()
+    if base_query:
+        return f"({base_query}) AND submittedDate:[{start_utc:%Y%m%d%H%M} TO {end_utc:%Y%m%d%H%M}]"
+    return f"submittedDate:[{start_utc:%Y%m%d%H%M} TO {end_utc:%Y%m%d%H%M}]"
 
 
 def build_run_search_query(config: dict, run_date: str) -> str:
@@ -52,7 +55,26 @@ def build_run_search_query(config: dict, run_date: str) -> str:
     run_cfg = config.get("run", {})
     tz_name = run_cfg.get("timezone", "UTC")
     window_days = int(run_cfg.get("window_days", 1))
-    return build_date_window_query(arxiv_cfg["search_query"], run_date, tz_name, window_days=window_days)
+    query = arxiv_cfg.get("search_query", "")
+    if not query:
+        allowed_categories = [cat.strip() for cat in arxiv_cfg.get("allowed_categories", []) if str(cat).strip()]
+        if allowed_categories:
+            query = " OR ".join(f"cat:{category}" for category in allowed_categories)
+    return build_date_window_query(query, run_date, tz_name, window_days=window_days)
+
+
+def _normalize_allowed_categories(raw_categories: list[str] | tuple[str, ...] | None) -> set[str]:
+    return {str(cat).strip() for cat in (raw_categories or []) if str(cat).strip()}
+
+
+def _paper_within_allowed_categories(paper: ArxivPaper, allowed_categories: set[str]) -> bool:
+    if not allowed_categories:
+        return False
+    paper_categories = {cat.strip() for cat in paper.categories if str(cat).strip()}
+    primary_category = paper.primary_category.strip()
+    if primary_category:
+        paper_categories.add(primary_category)
+    return bool(paper_categories) and paper_categories.issubset(allowed_categories)
 
 
 async def fetch_arxiv_papers(config: dict, run_date: str | None = None) -> list[ArxivPaper]:
@@ -69,32 +91,42 @@ async def fetch_arxiv_papers(config: dict, run_date: str | None = None) -> list[
         user_agent=arxiv_cfg.get("user_agent", "Auto-Paper/0.1"),
     )
     page_size = int(arxiv_cfg.get("page_size", 50))
-    max_results = int(arxiv_cfg.get("max_results", 100))
+    allowed_categories = _normalize_allowed_categories(arxiv_cfg.get("allowed_categories", []))
+    max_results_raw = arxiv_cfg.get("max_results", "")
+    max_results = int(max_results_raw) if str(max_results_raw).strip() else None
     papers: list[ArxivPaper] = []
     start = 0
 
-    while len(papers) < max_results:
+    while True:
+        remaining = page_size
+        if max_results is not None:
+            remaining = min(page_size, max_results - len(papers))
+            if remaining <= 0:
+                break
         page = await client.fetch_feed(
             search_query=search_query,
-            max_results=min(page_size, max_results - len(papers)),
+            max_results=remaining,
             start=start,
             sort_by="submittedDate",
             sort_order="descending",
         )
         if not page:
             break
-        papers.extend(page)
+        filtered_page = [paper for paper in page if _paper_within_allowed_categories(paper, allowed_categories)]
+        papers.extend(filtered_page)
         if len(page) < page_size:
             break
         start += page_size
-    return papers[:max_results]
+    if max_results is not None:
+        return papers[:max_results]
+    return papers
 
 
 def prepare_run(config: dict, run_date: str | None = None) -> WorkflowResult:
     run_cfg = config.get("run", {})
     tz_name = run_cfg.get("timezone", "UTC")
     date_string = build_run_date(tz_name, run_date)
-    search_query = build_run_search_query(config, date_string)
+    query = build_run_search_query(config, date_string)
     run_root = Path(run_cfg.get("run_root", "data/runs"))
     run_dir = run_root / date_string
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -169,7 +201,7 @@ def prepare_run(config: dict, run_date: str | None = None) -> WorkflowResult:
         json_dumps(
             {
                 "date": date_string,
-                "query": search_query,
+                "query": query,
                 "total_fetched": len(papers),
                 "run_dir": str(run_dir),
                 "screening_queue_path": str(screening_queue_path),
@@ -182,7 +214,7 @@ def prepare_run(config: dict, run_date: str | None = None) -> WorkflowResult:
 
     return WorkflowResult(
         date=date_string,
-        query=search_query,
+        query=query,
         run_dir=run_dir,
         fetched_papers=papers,
         runs=paper_runs,
@@ -403,8 +435,6 @@ def score_screening_queue(papers: list[ArxivPaper], focus: dict | None = None) -
         for hint in ["serving", "inference", "runtime", "latency", "throughput", "memory", "edge", "quantization", "speculative decoding", "batching", "scheduler"]:
             if hint in text:
                 score += 1
-        if any(venue.lower() in text for venue in focus.get("venue_hints", [])):
-            score += 1
         selected = score >= 2
         results[paper.id_version] = ScreeningResult(
             selected_for_full_read=selected,
@@ -483,7 +513,6 @@ def _render_screening_prompt(date_string: str, config: dict, rows: list[dict]) -
     lines.append("")
     lines.append("## Selection Focus")
     lines.append(f"- Target: {config.get('focus', {}).get('name', 'AI infra')}")
-    lines.append(f"- Venue hints: {', '.join(config.get('focus', {}).get('venue_hints', []))}")
     lines.append("")
     lines.append("## Papers")
     for row in rows:
@@ -568,7 +597,7 @@ def _load_papers(run_dir: Path) -> list[ArxivPaper]:
     raw = json.loads(papers_path.read_text(encoding="utf-8"))
     papers: list[ArxivPaper] = []
     for item in raw:
-        payload = {k: v for k, v in item.items() if k not in {"id_version", "abstract_path"}}
+        payload = {k: v for k, v in item.items() if k not in {"id_version", "abstract_path", "abstract"}}
         papers.append(ArxivPaper(**payload))
     return papers
 

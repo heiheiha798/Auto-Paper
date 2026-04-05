@@ -41,9 +41,10 @@ DEFAULT_CONFIG_RESOURCE = "configs/default.toml"
 DEFAULT_CONFIG_TEXT = """[arxiv]
 base_url = "https://export.arxiv.org/api/query"
 source_url_template = "https://arxiv.org/e-print/{paper_id}"
-search_query = "cat:cs.*"
+search_query = ""
+allowed_categories = ["cs.AI", "cs.AR", "cs.CL", "cs.DC", "cs.LG", "cs.OS", "cs.PF", "cs.SE", "cs.SY"]
 page_size = 50
-max_results = 100
+max_results = ""
 request_delay_seconds = 3.0
 user_agent = "Auto-Paper/0.1"
 
@@ -57,9 +58,13 @@ max_source_attempts = 1
 [digest]
 top_k = 5
 
+[llm]
+day_subagent_model = "gpt-5.4"
+day_subagent_reasoning_effort = "high"
+day_subagent_profile = "gpt-5.4-high"
+
 [focus]
 name = "AI infra"
-venue_hints = ["OSDI", "ASPLOS", "SOSP", "NSDI", "EUROSYS", "ATC", "MLSYS"]
 """
 
 

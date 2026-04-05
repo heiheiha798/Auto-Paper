@@ -4,9 +4,7 @@ Canonical rules live in [AGENTS.md](/home/tianjianyang/code/Auto-Paper/AGENTS.md
 
 ## Retrieval
 
-## Retrieval
-
-- Use broad `cs.*` intake and a fixed date window.
+- Use the approved `cs` category allowlist as a hard fence and a fixed date window.
 - Fetch metadata first, source archives later.
 - Skip papers without usable source text.
 - Keep requests polite and deterministic.
@@ -35,7 +33,9 @@ Canonical rules live in [AGENTS.md](/home/tianjianyang/code/Auto-Paper/AGENTS.md
 ## Daily Digest
 
 - Summarize only papers that survive triage.
-- Keep the output short: title, arXiv id, venue, one-line summary, score, reason, and risk flags.
+- Keep the output Chinese-first, but preserve English technical terms like `token`, `MoE`, and `KV cache`.
+- For each paper card, include background, motivation, method, evaluation, results, baseline, novelty, limitations, and takeaway.
+- Let scoring decide final inclusion; score-4 and score-5 papers belong in the digest.
 - Rank by infra relevance and technical substance.
 
 ## MVP
@@ -48,13 +48,3 @@ Canonical rules live in [AGENTS.md](/home/tianjianyang/code/Auto-Paper/AGENTS.md
 - TeX/text extraction
 - Review JSON
 - Markdown digest
-
-## References
-
-- [AutoLLM/ArxivDigest](https://github.com/AutoLLM/ArxivDigest)
-- [deep-diver/paper-reviewer](https://github.com/deep-diver/paper-reviewer)
-- [daheepk/arxiv-paper-mcp](https://github.com/daheepk/arxiv-paper-mcp)
-- [Future-House/paper-qa](https://github.com/Future-House/paper-qa)
-- [arXiv/arxiv-search](https://github.com/arXiv/arxiv-search)
-- [TideDra/zotero-arxiv-daily](https://github.com/TideDra/zotero-arxiv-daily)
-- [kaixindelele/ChatPaper](https://github.com/kaixindelele/ChatPaper)
