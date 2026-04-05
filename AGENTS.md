@@ -12,6 +12,9 @@ Codex startup contract:
 - The daily digest should only include papers that survive the scoring/filtering step.
 - Do not add PDF/OCR extraction paths.
 - Keep runtime artifacts under `data/runs/` and daily Markdown under `reports/daily/`.
+- For long backfills, the main process must act as a persistent scheduler and delegate one day to one subagent. Do not have the main process loop over days serially when independent subagents can run in parallel.
+- Subagents should use the same model tier or lower than the main process. Prefer the mini tier for day-level workers when available; do not assign a stronger model to a subagent than the main process.
+- Treat each date as an independently resumable unit with explicit completion state, not as an in-memory loop.
 - Update or add tests in `tests/` when workflow behavior changes.
 
 Canonical workflow:

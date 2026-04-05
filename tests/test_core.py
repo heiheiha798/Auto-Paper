@@ -77,6 +77,12 @@ class CoreTests(unittest.TestCase):
             "reports/daily/2026-04-05.md",
         )
 
+    def test_agents_contract_mentions_subagent_backfill(self) -> None:
+        text = Path("/home/tianjianyang/code/Auto-Paper/AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("delegate one day to one subagent", text)
+        self.assertIn("same model tier or lower", text)
+        self.assertIn("independently resumable unit", text)
+
     def test_manifest_and_extract_follow_includes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

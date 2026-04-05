@@ -157,3 +157,28 @@ class WorkflowResult:
     queue_path: Path | None = None
     review_template_path: Path | None = None
     digest_path: Path | None = None
+
+
+@dataclass(slots=True)
+class BackfillTask:
+    date: str
+    status: str
+    run_dir: Path | None = None
+    worker_agent_id: str | None = None
+    attempts: int = 0
+    last_error: str = ""
+    started_at: str = ""
+    finished_at: str = ""
+
+
+@dataclass(slots=True)
+class BackfillJob:
+    job_id: str
+    start_date: str
+    end_date: str
+    direction: str = "oldest-first"
+    max_parallel: int = 1
+    status: str = "pending"
+    tasks: list[BackfillTask] = field(default_factory=list)
+    pipeline_version: str = ""
+    config_hash: str = ""

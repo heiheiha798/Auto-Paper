@@ -33,6 +33,8 @@ Codex should read [AGENTS.md](/home/tianjianyang/code/Auto-Paper/AGENTS.md) firs
 6. Codex writes `reviews.json` with 6-point scores and short summaries.
 7. `auto-paper digest` renders the daily Markdown report from the scored survivors only.
 
+For long backfills, the main process should schedule one date per subagent and persist completion state between runs. Do not implement a single serial loop in the main process when dates can be processed independently.
+
 ## Commands
 
 - `auto-paper prepare [--date YYYY-MM-DD]`
