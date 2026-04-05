@@ -9,7 +9,10 @@ Codex startup contract:
 - Prefer Codex-driven routing, summarization, triage, and review. The code should prepare artifacts, not hide the reasoning layer.
 - Fetch only the approved `cs` category allowlist first, and treat it as a hard fence: keep only papers whose arXiv categories are fully inside the allowlist, then let Codex decide what is infra-relevant.
 - The reading scope is broader than pure acceleration: include papers with a novel idea or a paper-worthy direction even if the main gain is not speed.
+- Do not spend full-reading budget on papers with clearly weak infra relevance, such as model-centric or training-centric work that does not meaningfully affect serving, deployment, runtime, or inference-side systems.
+- Do not prioritize training-optimization papers; keep the focus on serving, deployment, runtime, and other inference-side infra work.
 - The daily digest should include the score-4 and score-5 papers that survive scoring/filtering.
+- After rendering the daily digest, LLM may manually copy papers from that digest with score 5 or higher into `reports/tracks/` as a topic-organized reference archive. Choose the primary track yourself from the reference buckets in `reports/tracks/README.md`; do not hardcode or auto-generate track assignment in code.
 - The daily digest should be Chinese-first, with English technical terms preserved as English names, e.g. `token`, `MoE`, `KV cache`, and `speculative decoding`.
 - Do not add PDF/OCR extraction paths.
 - Keep runtime artifacts under `data/runs/` and daily Markdown under `reports/daily/`.
@@ -26,6 +29,6 @@ Canonical workflow:
 4. Codex reads routing prompts and writes `routing_decisions.json`.
 5. `auto-paper extract` extracts TeX/text for routed files.
 6. Codex writes `reviews.json` with 6-point scores and concise summaries.
-7. `auto-paper digest` renders the daily Markdown report.
+7. `auto-paper digest` renders the daily Markdown report. If needed, LLM manually copies score-5-or-higher papers into `reports/tracks/` as a reference archive.
 
 For command syntax and defaults, see `README.md` and `configs/default.toml`.

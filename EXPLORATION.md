@@ -1,6 +1,6 @@
 # Auto-Paper Exploration Notes
 
-Canonical rules live in [AGENTS.md](/home/tianjianyang/code/Auto-Paper/AGENTS.md) and [README.md](/home/tianjianyang/code/Auto-Paper/README.md). This file keeps the design rationale short.
+Canonical rules live in [AGENTS.md](/home/tianjianyang/code/Auto-Paper/AGENTS.md). This file keeps only a short design note.
 
 ## Retrieval
 

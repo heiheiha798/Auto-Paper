@@ -6,16 +6,12 @@ Auto-Paper is a TeX-first arXiv workflow for Codex-driven paper reading.
 
 Codex should read [AGENTS.md](/home/tianjianyang/code/Auto-Paper/AGENTS.md) first.
 
-## Core Rules
+## Notes
 
-- Fetch only the approved `cs` category allowlist first, and enforce it as a hard fence: only papers whose categories stay fully inside the allowlist are fetched, then let Codex decide relevance.
-- The reading scope is not limited to acceleration; any paper with a novel idea or a plausible paper-worthy direction can be routed into full reading.
-- The final digest only keeps papers that survive scoring.
-- Keep the pipeline TeX/source only. No PDF or OCR fallback.
-- Keep all scores on a 6-point scale.
-- Keep the daily digest Chinese-first. Preserve English technical terms such as `token`, `MoE`, and `KV cache` in English.
-- Keep runtime artifacts under `data/runs/<date>/`.
-- Keep daily Markdown under `reports/daily/`.
+- TeX/source only, no PDF or OCR fallback.
+- 6-point scoring throughout.
+- Chinese-first output with English technical terms preserved.
+- `reports/tracks/README.md` is a manual track reference.
 
 ## Workflow
 
@@ -51,3 +47,4 @@ Default day-level subagents should run as `gpt-5.4` with `reasoning_effort=high`
 - `data/runs/<date>/` for runtime artifacts
 - `data/runs/<date>/papers/<arxiv_idvN>/` for per-paper source and extraction files
 - `reports/daily/` for daily Markdown
+- `reports/tracks/README.md` for track reference buckets

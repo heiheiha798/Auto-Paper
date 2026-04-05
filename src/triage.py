@@ -93,7 +93,6 @@ def _score_infra_fit(text: str) -> int:
         "edge",
         "distributed",
         "speculative decoding",
-        "quantization",
     ]
     score = sum(1 for h in hints if h in text)
     return min(SCORE_SCALE, score)

@@ -432,7 +432,7 @@ def score_screening_queue(papers: list[ArxivPaper], focus: dict | None = None) -
     for paper in papers:
         text = f"{paper.title}\n{paper.summary}".lower()
         score = 0
-        for hint in ["serving", "inference", "runtime", "latency", "throughput", "memory", "edge", "quantization", "speculative decoding", "batching", "scheduler"]:
+        for hint in ["serving", "inference", "runtime", "latency", "throughput", "memory", "edge", "speculative decoding", "batching", "scheduler"]:
             if hint in text:
                 score += 1
         selected = score >= 2
