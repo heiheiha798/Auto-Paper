@@ -12,6 +12,7 @@ Codex should read [AGENTS.md](/home/tianjianyang/code/Auto-Paper/AGENTS.md) firs
 - 6-point scoring throughout.
 - Chinese-first output with English technical terms preserved.
 - `reports/tracks/README.md` is a manual track reference.
+- `auto-paper prepare` supports `--search-term` plus `--query-start-date` / `--query-end-date`.
 
 ## Workflow
 
@@ -36,6 +37,7 @@ Default day-level subagents should run as `gpt-5.4` with `reasoning_effort=high`
 ## Commands
 
 - `auto-paper prepare [--date YYYY-MM-DD]`
+- `auto-paper prepare [--date YYYY-MM-DD] [--search-query <raw>] [--search-term <phrase> ...] [--search-terms-mode any|all] [--query-start-date YYYY-MM-DD] [--query-end-date YYYY-MM-DD]`
 - `auto-paper screening-template`
 - `auto-paper materialize --run-dir <run-dir> [--screening-decisions <path>]`
 - `auto-paper extract --run-dir <run-dir> --routing-decisions <path>`

@@ -2,6 +2,10 @@
 base_url = "https://export.arxiv.org/api/query"
 source_url_template = "https://arxiv.org/e-print/{paper_id}"
 search_query = ""
+search_terms = []
+search_terms_mode = "any"
+query_start_date = ""
+query_end_date = ""
 allowed_categories = ["cs.AI", "cs.AR", "cs.CL", "cs.DC", "cs.LG", "cs.OS", "cs.PF", "cs.SE", "cs.SY"]
 page_size = 50
 max_results = ""

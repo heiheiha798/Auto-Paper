@@ -50,17 +50,119 @@ def build_date_window_query(base_query: str, run_date: str, timezone_name: str, 
     return f"submittedDate:[{start_utc:%Y%m%d%H%M} TO {end_utc:%Y%m%d%H%M}]"
 
 
-def build_run_search_query(config: dict, run_date: str) -> str:
+def build_submission_date_range_query(
+    start_date: str,
+    timezone_name: str,
+    end_date: str | None = None,
+    now_utc: datetime | None = None,
+) -> str:
+    tz = ZoneInfo(timezone_name)
+    start_local = datetime.combine(date.fromisoformat(start_date), datetime.min.time(), tz)
+    end_local = datetime.combine(date.fromisoformat(end_date) + timedelta(days=1), datetime.min.time(), tz) if end_date else (
+        now_utc or datetime.now(timezone.utc)
+    )
+    if end_local.tzinfo is None:
+        end_local = end_local.replace(tzinfo=timezone.utc)
+    start_utc = start_local.astimezone(timezone.utc)
+    end_utc = end_local.astimezone(timezone.utc)
+    if end_utc < start_utc:
+        raise ValueError("end_date must not be earlier than start_date")
+    return f"submittedDate:[{start_utc:%Y%m%d%H%M} TO {end_utc:%Y%m%d%H%M}]"
+
+
+def _normalize_search_terms(raw_terms: list[str] | tuple[str, ...] | None) -> list[str]:
+    return [str(term).strip() for term in (raw_terms or []) if str(term).strip()]
+
+
+def _escape_arxiv_phrase(term: str) -> str:
+    return term.replace("\\", "\\\\").replace('"', r"\"")
+
+
+def _build_title_abstract_clause(term: str) -> str:
+    phrase = _escape_arxiv_phrase(term.casefold())
+    return f'(ti:"{phrase}" OR abs:"{phrase}")'
+
+
+def build_search_terms_query(terms: list[str] | tuple[str, ...] | None, mode: str = "any") -> str:
+    normalized_terms = _normalize_search_terms(terms)
+    if not normalized_terms:
+        return ""
+    operator = mode.strip().upper()
+    if operator not in {"ANY", "OR", "ALL", "AND"}:
+        raise ValueError(f"Unsupported search term mode: {mode!r}")
+    joiner = " OR " if operator in {"ANY", "OR"} else " AND "
+    clauses = [_build_title_abstract_clause(term) for term in normalized_terms]
+    if len(clauses) == 1:
+        return clauses[0]
+    return f"({joiner.join(clauses)})"
+
+
+def _build_category_query(allowed_categories: list[str] | tuple[str, ...]) -> str:
+    normalized = [str(cat).strip() for cat in allowed_categories if str(cat).strip()]
+    if not normalized:
+        return ""
+    if len(normalized) == 1:
+        return f"cat:{normalized[0]}"
+    return "(" + " OR ".join(f"cat:{category}" for category in normalized) + ")"
+
+
+def _resolve_search_clause(
+    base_query: str,
+    search_terms: list[str] | tuple[str, ...] | None,
+    search_terms_mode: str | None,
+    fallback_query: str,
+) -> str:
+    clauses: list[str] = []
+    if base_query.strip():
+        clauses.append(f"({base_query.strip()})")
+    term_query = build_search_terms_query(search_terms, search_terms_mode or "any")
+    if term_query:
+        clauses.append(term_query)
+    if not clauses:
+        return fallback_query
+    if len(clauses) == 1:
+        return clauses[0]
+    return " AND ".join(clauses)
+
+
+def build_run_search_query(
+    config: dict,
+    run_date: str,
+    search_query: str | None = None,
+    search_terms: list[str] | tuple[str, ...] | None = None,
+    search_terms_mode: str | None = None,
+    query_start_date: str | None = None,
+    query_end_date: str | None = None,
+    now_utc: datetime | None = None,
+) -> str:
     arxiv_cfg = config["arxiv"]
     run_cfg = config.get("run", {})
     tz_name = run_cfg.get("timezone", "UTC")
     window_days = int(run_cfg.get("window_days", 1))
-    query = arxiv_cfg.get("search_query", "")
-    if not query:
-        allowed_categories = [cat.strip() for cat in arxiv_cfg.get("allowed_categories", []) if str(cat).strip()]
-        if allowed_categories:
-            query = " OR ".join(f"cat:{category}" for category in allowed_categories)
-    return build_date_window_query(query, run_date, tz_name, window_days=window_days)
+    raw_query = str(search_query if search_query is not None else arxiv_cfg.get("search_query", "")).strip()
+    config_terms = arxiv_cfg.get("search_terms", [])
+    resolved_terms = _normalize_search_terms(search_terms if search_terms is not None else config_terms)
+    resolved_term_mode = search_terms_mode if search_terms_mode is not None else str(arxiv_cfg.get("search_terms_mode", "any"))
+    resolved_start_date = query_start_date if query_start_date is not None else str(arxiv_cfg.get("query_start_date", "")).strip() or None
+    resolved_end_date = query_end_date if query_end_date is not None else str(arxiv_cfg.get("query_end_date", "")).strip() or None
+
+    category_query = _build_category_query(arxiv_cfg.get("allowed_categories", []))
+    content_query = _resolve_search_clause(raw_query, resolved_terms, resolved_term_mode, fallback_query="")
+
+    if resolved_start_date or resolved_end_date:
+        if not resolved_start_date:
+            resolved_start_date = run_date
+        date_query = build_submission_date_range_query(
+            resolved_start_date,
+            tz_name,
+            end_date=resolved_end_date,
+            now_utc=now_utc,
+        )
+    else:
+        date_query = build_date_window_query("", run_date, tz_name, window_days=window_days)
+
+    clauses = [clause for clause in [category_query, content_query, date_query] if clause]
+    return " AND ".join(clauses)
 
 
 def _normalize_allowed_categories(raw_categories: list[str] | tuple[str, ...] | None) -> set[str]:
@@ -77,11 +179,29 @@ def _paper_within_allowed_categories(paper: ArxivPaper, allowed_categories: set[
     return bool(paper_categories) and paper_categories.issubset(allowed_categories)
 
 
-async def fetch_arxiv_papers(config: dict, run_date: str | None = None) -> list[ArxivPaper]:
+async def fetch_arxiv_papers(
+    config: dict,
+    run_date: str | None = None,
+    search_query: str | None = None,
+    search_terms: list[str] | tuple[str, ...] | None = None,
+    search_terms_mode: str | None = None,
+    query_start_date: str | None = None,
+    query_end_date: str | None = None,
+    now_utc: datetime | None = None,
+) -> list[ArxivPaper]:
     run_cfg = config.get("run", {})
     tz_name = run_cfg.get("timezone", "UTC")
     date_string = build_run_date(tz_name, run_date)
-    search_query = build_run_search_query(config, date_string)
+    query = build_run_search_query(
+        config,
+        date_string,
+        search_query=search_query,
+        search_terms=search_terms,
+        search_terms_mode=search_terms_mode,
+        query_start_date=query_start_date,
+        query_end_date=query_end_date,
+        now_utc=now_utc,
+    )
     arxiv_cfg = config["arxiv"]
 
     client = ArxivClient(
@@ -104,7 +224,7 @@ async def fetch_arxiv_papers(config: dict, run_date: str | None = None) -> list[
             if remaining <= 0:
                 break
         page = await client.fetch_feed(
-            search_query=search_query,
+            search_query=query,
             max_results=remaining,
             start=start,
             sort_by="submittedDate",
@@ -122,16 +242,45 @@ async def fetch_arxiv_papers(config: dict, run_date: str | None = None) -> list[
     return papers
 
 
-def prepare_run(config: dict, run_date: str | None = None) -> WorkflowResult:
+def prepare_run(
+    config: dict,
+    run_date: str | None = None,
+    search_query: str | None = None,
+    search_terms: list[str] | tuple[str, ...] | None = None,
+    search_terms_mode: str | None = None,
+    query_start_date: str | None = None,
+    query_end_date: str | None = None,
+    now_utc: datetime | None = None,
+) -> WorkflowResult:
     run_cfg = config.get("run", {})
     tz_name = run_cfg.get("timezone", "UTC")
     date_string = build_run_date(tz_name, run_date)
-    query = build_run_search_query(config, date_string)
+    query = build_run_search_query(
+        config,
+        date_string,
+        search_query=search_query,
+        search_terms=search_terms,
+        search_terms_mode=search_terms_mode,
+        query_start_date=query_start_date,
+        query_end_date=query_end_date,
+        now_utc=now_utc,
+    )
     run_root = Path(run_cfg.get("run_root", "data/runs"))
     run_dir = run_root / date_string
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    papers = asyncio.run(fetch_arxiv_papers(config, run_date=date_string))
+    papers = asyncio.run(
+        fetch_arxiv_papers(
+            config,
+            run_date=date_string,
+            search_query=search_query,
+            search_terms=search_terms,
+            search_terms_mode=search_terms_mode,
+            query_start_date=query_start_date,
+            query_end_date=query_end_date,
+            now_utc=now_utc,
+        )
+    )
     paper_runs: list[PaperRunResult] = []
     paper_payloads: list[dict] = []
     screening_rows: list[dict] = []
@@ -202,6 +351,11 @@ def prepare_run(config: dict, run_date: str | None = None) -> WorkflowResult:
             {
                 "date": date_string,
                 "query": query,
+                "search_query": search_query if search_query is not None else config["arxiv"].get("search_query", ""),
+                "search_terms": _normalize_search_terms(search_terms if search_terms is not None else config["arxiv"].get("search_terms", [])),
+                "search_terms_mode": search_terms_mode if search_terms_mode is not None else config["arxiv"].get("search_terms_mode", "any"),
+                "query_start_date": query_start_date if query_start_date is not None else config["arxiv"].get("query_start_date", ""),
+                "query_end_date": query_end_date if query_end_date is not None else config["arxiv"].get("query_end_date", ""),
                 "total_fetched": len(papers),
                 "run_dir": str(run_dir),
                 "screening_queue_path": str(screening_queue_path),

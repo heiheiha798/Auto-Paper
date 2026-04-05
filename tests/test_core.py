@@ -12,6 +12,7 @@ import subprocess
 import zipfile
 import os
 from pathlib import Path
+from datetime import datetime, timezone
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -30,6 +31,10 @@ class CoreTests(unittest.TestCase):
     def test_load_default_config(self) -> None:
         config = load_config()
         self.assertEqual(config.arxiv["search_query"], "")
+        self.assertEqual(config.arxiv["search_terms"], [])
+        self.assertEqual(config.arxiv["search_terms_mode"], "any")
+        self.assertEqual(config.arxiv["query_start_date"], "")
+        self.assertEqual(config.arxiv["query_end_date"], "")
         self.assertEqual(
             config.arxiv["allowed_categories"],
             ["cs.AI", "cs.AR", "cs.CL", "cs.DC", "cs.LG", "cs.OS", "cs.PF", "cs.SE", "cs.SY"],
@@ -56,7 +61,7 @@ class CoreTests(unittest.TestCase):
                 [
                     sys.executable,
                     "-c",
-                    "from config import load_config; cfg = load_config(); print(cfg.arxiv['search_query']); print(cfg.arxiv['allowed_categories']); print(cfg.arxiv['max_results']); print(cfg.digest['top_k'])",
+                    "from config import load_config; cfg = load_config(); print(cfg.arxiv['search_query']); print(cfg.arxiv['search_terms']); print(cfg.arxiv['query_start_date']); print(cfg.arxiv['allowed_categories']); print(cfg.arxiv['max_results']); print(cfg.digest['top_k'])",
                 ],
                 check=True,
                 stdout=subprocess.PIPE,
@@ -65,8 +70,10 @@ class CoreTests(unittest.TestCase):
                 env=env,
             )
             self.assertEqual(proc.stdout.splitlines()[0], "")
-            self.assertIn("cs.AI", proc.stdout)
+            self.assertEqual(proc.stdout.splitlines()[1], "[]")
             self.assertEqual(proc.stdout.splitlines()[2], "")
+            self.assertIn("cs.AI", proc.stdout)
+            self.assertEqual(proc.stdout.splitlines()[4], "")
             self.assertIn("5", proc.stdout)
 
     def test_build_date_window_query(self) -> None:
@@ -80,6 +87,22 @@ class CoreTests(unittest.TestCase):
         self.assertIn("cat:cs.AI", query)
         self.assertIn("cat:cs.OS", query)
         self.assertIn("submittedDate:[202412311600 TO 202501011600]", query)
+
+    def test_build_run_search_query_supports_title_abstract_terms_and_date_range(self) -> None:
+        config = load_config().raw
+        query = build_run_search_query(
+            config,
+            "2026-04-05",
+            search_terms=["Agent Memory", "Position-Independent Caching"],
+            search_terms_mode="any",
+            query_start_date="2025-01-01",
+            now_utc=datetime(2026, 4, 5, 12, 0, tzinfo=timezone.utc),
+        )
+        self.assertIn("cat:cs.AI", query)
+        self.assertIn('ti:"agent memory"', query)
+        self.assertIn('abs:"agent memory"', query)
+        self.assertIn('ti:"position-independent caching"', query)
+        self.assertIn("submittedDate:[202412311600 TO 202604051200]", query)
 
     def test_fetch_arxiv_papers_uses_unbounded_pagination_when_max_results_blank(self) -> None:
         config = load_config().raw
@@ -130,6 +153,52 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(fake_client.calls[0][1], 1)
         self.assertEqual(fake_client.calls[1][2], 1)
         self.assertEqual(fake_client.calls[2][2], 2)
+
+    def test_fetch_arxiv_papers_passes_search_terms_and_open_date_window(self) -> None:
+        config = load_config().raw
+        config["arxiv"]["page_size"] = 1
+        config["arxiv"]["max_results"] = "1"
+        pages = [
+            [ArxivPaper(
+                arxiv_id="2401.00001",
+                version=1,
+                title="Paper A",
+                summary="Summary A",
+                published="2024-01-01T00:00:00Z",
+                updated="2024-01-01T00:00:00Z",
+                primary_category="cs.AI",
+                categories=["cs.AI"],
+                authors=["A"],
+                link="https://arxiv.org/abs/2401.00001",
+            )],
+        ]
+
+        class FakeClient:
+            def __init__(self) -> None:
+                self.calls: list[tuple[str, int, int]] = []
+
+            async def fetch_feed(self, search_query: str, max_results: int, start: int, sort_by: str, sort_order: str):
+                self.calls.append((search_query, max_results, start))
+                return pages[0]
+
+        fake_client = FakeClient()
+
+        with patch("workflow.ArxivClient", return_value=fake_client):
+            result = asyncio.run(
+                fetch_arxiv_papers(
+                    config,
+                    "2026-04-05",
+                    search_terms=["Agent Memory", "Position-Independent Caching"],
+                    query_start_date="2025-01-01",
+                    now_utc=datetime(2026, 4, 5, 12, 0, tzinfo=timezone.utc),
+                )
+            )
+
+        self.assertEqual([paper.arxiv_id for paper in result], ["2401.00001"])
+        self.assertEqual(len(fake_client.calls), 1)
+        self.assertIn('ti:"agent memory"', fake_client.calls[0][0])
+        self.assertIn('abs:"position-independent caching"', fake_client.calls[0][0])
+        self.assertIn("submittedDate:[202412311600 TO 202604051200]", fake_client.calls[0][0])
 
     def test_fetch_arxiv_papers_filters_to_full_category_subset(self) -> None:
         config = load_config().raw

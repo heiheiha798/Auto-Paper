@@ -41,6 +41,22 @@ def build_parser() -> argparse.ArgumentParser:
 
     prepare = subparsers.add_parser("prepare", help="Fetch arXiv metadata and write the screening queue.")
     prepare.add_argument("--date", default=None, help="Run date in YYYY-MM-DD.")
+    prepare.add_argument("--search-query", default=None, help="Additional raw arXiv query clause.")
+    prepare.add_argument(
+        "--search-term",
+        dest="search_terms",
+        action="append",
+        default=None,
+        help='Repeatable title/abstract phrase search, e.g. "Agent Memory".',
+    )
+    prepare.add_argument(
+        "--search-terms-mode",
+        choices=["any", "all"],
+        default=None,
+        help="Combine repeated search terms with OR (any) or AND (all).",
+    )
+    prepare.add_argument("--query-start-date", default=None, help="Inclusive start date in YYYY-MM-DD.")
+    prepare.add_argument("--query-end-date", default=None, help="Inclusive end date in YYYY-MM-DD.")
 
     materialize = subparsers.add_parser("materialize", help="Download and unpack source for screened papers.")
     materialize.add_argument("--run-dir", required=True, help="Run directory created by prepare.")
@@ -69,7 +85,15 @@ def main() -> None:
     config = load_config(args.config).raw
 
     if args.command == "prepare":
-        result = prepare_run(config, run_date=args.date)
+        result = prepare_run(
+            config,
+            run_date=args.date,
+            search_query=args.search_query,
+            search_terms=args.search_terms,
+            search_terms_mode=args.search_terms_mode,
+            query_start_date=args.query_start_date,
+            query_end_date=args.query_end_date,
+        )
         print(result.run_dir)
         if result.screening_queue_path:
             print(result.screening_queue_path)
