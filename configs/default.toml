@@ -1,0 +1,22 @@
+[arxiv]
+base_url = "https://export.arxiv.org/api/query"
+source_url_template = "https://arxiv.org/e-print/{paper_id}"
+search_query = "cat:cs.*"
+page_size = 50
+max_results = 100
+request_delay_seconds = 3.0
+user_agent = "Auto-Paper/0.1"
+
+[run]
+timezone = "Asia/Shanghai"
+window_days = 1
+run_root = "data/runs"
+daily_root = "reports/daily"
+max_source_attempts = 1
+
+[digest]
+top_k = 5
+
+[focus]
+name = "AI infra"
+venue_hints = ["OSDI", "ASPLOS", "SOSP", "NSDI", "EUROSYS", "ATC", "MLSYS"]

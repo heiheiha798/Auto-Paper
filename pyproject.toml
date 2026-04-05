@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "auto-paper"
+version = "0.1.0"
+description = "TeX-first arXiv paper workflow for AI infra reading"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+auto-paper = "cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+py-modules = [
+  "abstracts",
+  "arxiv_client",
+  "cli",
+  "config",
+  "digest",
+  "extract",
+  "manifest",
+  "models",
+  "router",
+  "source_fetch",
+  "triage",
+  "utils",
+  "workflow",
+]

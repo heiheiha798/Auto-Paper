@@ -1,0 +1,32 @@
+# Python bytecode and tooling caches
+__pycache__/
+*.py[cod]
+*.pyc.*
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+.ipynb_checkpoints/
+
+# Local virtualenv and build artifacts
+.venv/
+build/
+dist/
+*.egg-info/
+
+# Runtime artifacts produced by Auto-Paper
+data/runs/*
+reports/daily/*
+!data/runs/.gitkeep
+!reports/daily/.gitkeep
+
+# Local reference clones and vendor snapshots
+_upstream/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
