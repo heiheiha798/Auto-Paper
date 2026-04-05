@@ -47,13 +47,20 @@ def build_date_window_query(base_query: str, run_date: str, timezone_name: str, 
     return f"({base_query}) AND submittedDate:[{start_utc:%Y%m%d%H%M} TO {end_utc:%Y%m%d%H%M}]"
 
 
-async def fetch_arxiv_papers(config: dict, run_date: str | None = None) -> list[ArxivPaper]:
+def build_run_search_query(config: dict, run_date: str) -> str:
     arxiv_cfg = config["arxiv"]
     run_cfg = config.get("run", {})
     tz_name = run_cfg.get("timezone", "UTC")
     window_days = int(run_cfg.get("window_days", 1))
+    return build_date_window_query(arxiv_cfg["search_query"], run_date, tz_name, window_days=window_days)
+
+
+async def fetch_arxiv_papers(config: dict, run_date: str | None = None) -> list[ArxivPaper]:
+    run_cfg = config.get("run", {})
+    tz_name = run_cfg.get("timezone", "UTC")
     date_string = build_run_date(tz_name, run_date)
-    search_query = build_date_window_query(arxiv_cfg["search_query"], date_string, tz_name, window_days=window_days)
+    search_query = build_run_search_query(config, date_string)
+    arxiv_cfg = config["arxiv"]
 
     client = ArxivClient(
         base_url=arxiv_cfg["base_url"],
@@ -87,6 +94,7 @@ def prepare_run(config: dict, run_date: str | None = None) -> WorkflowResult:
     run_cfg = config.get("run", {})
     tz_name = run_cfg.get("timezone", "UTC")
     date_string = build_run_date(tz_name, run_date)
+    search_query = build_run_search_query(config, date_string)
     run_root = Path(run_cfg.get("run_root", "data/runs"))
     run_dir = run_root / date_string
     run_dir.mkdir(parents=True, exist_ok=True)

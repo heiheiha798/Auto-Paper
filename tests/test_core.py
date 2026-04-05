@@ -20,7 +20,7 @@ from digest import render_digest
 from manifest import build_source_manifest
 from models import DigestEntry, DigestReport, RoutingDecision, SummaryResult, TriageResult
 from source_fetch import extract_source_archive
-from workflow import build_date_window_query
+from workflow import build_date_window_query, build_run_search_query
 
 
 class CoreTests(unittest.TestCase):
@@ -60,6 +60,12 @@ class CoreTests(unittest.TestCase):
         query = build_date_window_query("cat:cs.*", "2026-04-05", "UTC", window_days=1)
         self.assertIn("cat:cs.*", query)
         self.assertIn("submittedDate:[202604050000 TO 202604060000]", query)
+
+    def test_build_run_search_query(self) -> None:
+        config = load_config().raw
+        query = build_run_search_query(config, "2025-01-01")
+        self.assertIn("cat:cs.*", query)
+        self.assertIn("submittedDate:[202412311600 TO 202501011600]", query)
 
     def test_resolve_history_paths(self) -> None:
         config = load_config().raw
