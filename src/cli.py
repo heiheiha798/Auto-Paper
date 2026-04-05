@@ -15,6 +15,26 @@ from workflow import (
 )
 
 
+def resolve_run_dir(config: dict, date_string: str, run_dir: str | Path | None = None) -> Path:
+    if run_dir is not None:
+        return Path(run_dir)
+    run_root = Path(config.get("run", {}).get("run_root", "data/runs"))
+    return run_root / date_string
+
+
+def resolve_reviews_path(run_dir: Path, reviews_path: str | Path | None = None) -> Path:
+    if reviews_path is not None:
+        return Path(reviews_path)
+    return run_dir / "reviews.json"
+
+
+def resolve_digest_output_path(config: dict, date_string: str, output_path: str | Path | None = None) -> Path:
+    if output_path is not None:
+        return Path(output_path)
+    daily_root = Path(config.get("run", {}).get("daily_root", "reports/daily"))
+    return daily_root / f"{date_string}.md"
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="auto-paper", description="TeX-first arXiv paper workflow for Codex.")
     parser.add_argument("--config", default=None, help="Path to config TOML file.")
@@ -33,10 +53,10 @@ def build_parser() -> argparse.ArgumentParser:
     extract.add_argument("--routing-decisions", required=True, help="Path to routing_decisions.json.")
 
     digest = subparsers.add_parser("digest", help="Render the daily Markdown digest.")
-    digest.add_argument("--run-dir", required=True, help="Run directory created by prepare.")
-    digest.add_argument("--reviews", required=True, help="Path to review JSON.")
+    digest.add_argument("--run-dir", default=None, help="Run directory created by prepare. Defaults to data/runs/<date>.")
+    digest.add_argument("--reviews", default=None, help="Path to review JSON. Defaults to <run-dir>/reviews.json.")
     digest.add_argument("--date", required=True, help="Run date in YYYY-MM-DD.")
-    digest.add_argument("--output", default=None, help="Digest output path.")
+    digest.add_argument("--output", default=None, help="Digest output path. Defaults to reports/daily/<date>.md.")
 
     template = subparsers.add_parser("screening-template", help="Write a blank screening decision template.")
     template.add_argument("--run-dir", required=True, help="Run directory created by prepare.")
@@ -70,11 +90,10 @@ def main() -> None:
         return
 
     if args.command == "digest":
-        if args.output:
-            output = Path(args.output)
-        else:
-            output = Path(config.get("run", {}).get("daily_root", "reports/daily")) / f"{args.date}.md"
-        path = render_digest_for_run(args.run_dir, args.reviews, args.date, output)
+        run_dir = resolve_run_dir(config, args.date, args.run_dir)
+        reviews_path = resolve_reviews_path(run_dir, args.reviews)
+        output = resolve_digest_output_path(config, args.date, args.output)
+        path = render_digest_for_run(run_dir, reviews_path, args.date, output)
         print(path)
         return
 

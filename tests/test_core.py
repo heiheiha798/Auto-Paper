@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from abstracts import extract_abstract_text
 from config import load_config
+from cli import resolve_digest_output_path, resolve_reviews_path, resolve_run_dir
 from digest import render_digest
 from manifest import build_source_manifest
 from models import DigestEntry, DigestReport, RoutingDecision, SummaryResult, TriageResult
@@ -59,6 +60,16 @@ class CoreTests(unittest.TestCase):
         query = build_date_window_query("cat:cs.*", "2026-04-05", "UTC", window_days=1)
         self.assertIn("cat:cs.*", query)
         self.assertIn("submittedDate:[202604050000 TO 202604060000]", query)
+
+    def test_resolve_history_paths(self) -> None:
+        config = load_config().raw
+        run_dir = resolve_run_dir(config, "2026-04-05")
+        self.assertEqual(run_dir.as_posix(), "data/runs/2026-04-05")
+        self.assertEqual(resolve_reviews_path(run_dir).as_posix(), "data/runs/2026-04-05/reviews.json")
+        self.assertEqual(
+            resolve_digest_output_path(config, "2026-04-05").as_posix(),
+            "reports/daily/2026-04-05.md",
+        )
 
     def test_manifest_and_extract_follow_includes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

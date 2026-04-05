@@ -39,7 +39,8 @@ Codex should read [AGENTS.md](/home/tianjianyang/code/Auto-Paper/AGENTS.md) firs
 - `auto-paper screening-template`
 - `auto-paper materialize --run-dir <run-dir> [--screening-decisions <path>]`
 - `auto-paper extract --run-dir <run-dir> --routing-decisions <path>`
-- `auto-paper digest --run-dir <run-dir> --reviews <path> --date <YYYY-MM-DD> [--output <path>]`
+- `auto-paper digest --date <YYYY-MM-DD> [--run-dir <run-dir>] [--reviews <path>] [--output <path>]`
+  - Defaults to `data/runs/<date>/reviews.json` and `reports/daily/<date>.md` when paths are omitted.
 
 ## Layout
 
