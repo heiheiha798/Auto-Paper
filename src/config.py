@@ -37,9 +37,46 @@ class AutoPaperConfig:
         return self.raw.get("run", {})
 
 
+DEFAULT_CONFIG_RESOURCE = "configs/default.toml"
+DEFAULT_CONFIG_TEXT = """[arxiv]
+base_url = "https://export.arxiv.org/api/query"
+source_url_template = "https://arxiv.org/e-print/{paper_id}"
+search_query = "cat:cs.*"
+page_size = 50
+max_results = 100
+request_delay_seconds = 3.0
+user_agent = "Auto-Paper/0.1"
+
+[run]
+timezone = "Asia/Shanghai"
+window_days = 1
+run_root = "data/runs"
+daily_root = "reports/daily"
+max_source_attempts = 1
+
+[digest]
+top_k = 5
+
+[focus]
+name = "AI infra"
+venue_hints = ["OSDI", "ASPLOS", "SOSP", "NSDI", "EUROSYS", "ATC", "MLSYS"]
+"""
+
+
 def load_config(path: str | Path | None = None) -> AutoPaperConfig:
     if path is None:
-        path = Path(__file__).resolve().parents[1] / "configs" / "default.toml"
+        candidate = Path(__file__).resolve().parents[1] / DEFAULT_CONFIG_RESOURCE
+        if candidate.exists():
+            path = candidate
+            if tomllib is not None:
+                with path.open("rb") as handle:
+                    data = tomllib.load(handle)
+            else:
+                data = _load_minimal_toml(path.read_text(encoding="utf-8"))
+            return AutoPaperConfig(raw=data, path=path)
+        path = candidate
+        data = _load_minimal_toml(DEFAULT_CONFIG_TEXT)
+        return AutoPaperConfig(raw=data, path=path)
     else:
         path = Path(path)
     if tomllib is not None:

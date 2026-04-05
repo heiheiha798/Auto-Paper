@@ -6,7 +6,9 @@ import tarfile
 import tempfile
 import unittest
 import sys
+import subprocess
 import zipfile
+import os
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -25,6 +27,33 @@ class CoreTests(unittest.TestCase):
         config = load_config()
         self.assertEqual(config.arxiv["search_query"], "cat:cs.*")
         self.assertEqual(config.digest["top_k"], 5)
+
+    def test_load_default_config_from_install_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "install"
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", "--quiet", "--target", str(target), str(Path(__file__).resolve().parents[1])],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            env = os.environ.copy()
+            env["PYTHONPATH"] = str(target)
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    "from config import load_config; cfg = load_config(); print(cfg.arxiv['search_query']); print(cfg.digest['top_k'])",
+                ],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                env=env,
+            )
+            self.assertIn("cat:cs.*", proc.stdout)
+            self.assertIn("5", proc.stdout)
 
     def test_build_date_window_query(self) -> None:
         query = build_date_window_query("cat:cs.*", "2026-04-05", "UTC", window_days=1)

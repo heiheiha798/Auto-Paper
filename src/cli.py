@@ -70,7 +70,10 @@ def main() -> None:
         return
 
     if args.command == "digest":
-        output = Path(args.output) if args.output else Path(args.run_dir) / "digest.md"
+        if args.output:
+            output = Path(args.output)
+        else:
+            output = Path(config.get("run", {}).get("daily_root", "reports/daily")) / f"{args.date}.md"
         path = render_digest_for_run(args.run_dir, args.reviews, args.date, output)
         print(path)
         return
